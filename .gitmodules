@@ -1,0 +1,3 @@
+[submodule "Scripts/cAR-proto"]
+	path = Scripts/cAR-proto
+	url = git@github.com:wtzhang23/cAR-proto.git
