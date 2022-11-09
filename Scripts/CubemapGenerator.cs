@@ -9,13 +9,21 @@ using Unity.VisualScripting;
 using TMPro;
 using UnityEngine.UI;
 using System.Threading.Tasks;
+using Google.Protobuf;
+using CArControls;
+using System.IO;
 
 public class CubemapGenerator : MonoBehaviour
 {
     private const int LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3, FRONT = 4, BACK = 5, NUM_DIRECTIONS = 6;
 
+    public OVRCameraRig rig;
+
+    public string controlsLabel;
+
     public RawImage left, right, up, down, front, back;
     public string leftId, rightId, upId, downId, frontId, backId;
+    public string controlsId;
 
     public Canvas canvas;
     public TMP_InputField addrInputField;
@@ -24,12 +32,17 @@ public class CubemapGenerator : MonoBehaviour
     public Button submitButton;
     public TMP_Text statusText;
 
+    public float followSpeedInDegrees;
+
     private RawImage[] planes;
     private Dictionary<string, int> idToIdx;
 
-    private Channel controlChannel;
-    private Control.ControlClient controlClient;
+    private Channel controlPlaneChannel;
+    private Control.ControlClient controlPlaneGrpcClient;
     private RTCPeerConnection videoConnection;
+    private RTCDataChannel controlsChannel;
+    private bool streaming;
+    private long seqNum;
 
     private void Awake()
     {
@@ -40,23 +53,24 @@ public class CubemapGenerator : MonoBehaviour
     public void setControlServer(string addr, string port) {
         Debug.Log("Button pressed; initializing webrtc connection");
         submitButton.interactable = false;
-        if (controlChannel != null) {
-            closeControlServiceConnection();
+        if (controlPlaneChannel != null) {
+            closeControlPlaneConnection();
         }
         if (videoConnection != null)
         {
             videoConnection.Close();
             videoConnection = null;
         }
-        controlChannel = new Channel($"{addr}:{port}", ChannelCredentials.Insecure);
-        controlClient = new Control.ControlClient(controlChannel);
+        controlPlaneChannel = new Channel($"{addr}:{port}", ChannelCredentials.Insecure);
+        controlPlaneGrpcClient = new Control.ControlClient(controlPlaneChannel);
         StartCoroutine(setupRTCPeerConnection());
     }
 
     // Start is called before the first frame update
     void Start()
     {
-
+        streaming = false;
+        seqNum = 0;
         planes = new RawImage[NUM_DIRECTIONS];
         
         // fill out planes array
@@ -90,13 +104,48 @@ public class CubemapGenerator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (streaming && controlPlaneChannel != null && controlsChannel != null && controlsChannel.ReadyState == RTCDataChannelState.Open) {
+            var thumbstickDir = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
+            ThumbstickDirection msg = new ThumbstickDirection()
+            {
+                Dx = thumbstickDir.x,
+                Dy = thumbstickDir.y,
+                SeqNum = seqNum,
+            };
+            byte[] msgAsBytes;
+            using (var ms = new MemoryStream())
+            {
+                msg.WriteDelimitedTo(ms);
+                msgAsBytes = ms.ToArray();
+            }
+            Debug.Log($"msg: {Convert.ToBase64String(msgAsBytes)}");
+            controlsChannel.Send(msgAsBytes);
+            seqNum++;
+        }
+
+        if (OVRInput.Get(OVRInput.Button.PrimaryThumbstick))
+        {
+            Debug.Log("Recentering");
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, rig.centerEyeAnchor.transform.rotation, (float) (followSpeedInDegrees / 180.0 * Math.PI));
+        }
     }
 
     private IEnumerator setupRTCPeerConnection()
     {
+        yield return handleInfo("Checking if control plane is running");
+        var healthCheckTask = controlPlaneGrpcClient.HealthCheckAsync(new HealthCheckRequest());
+        while (!healthCheckTask.ResponseAsync.IsCompleted)
+        {
+            yield return new WaitForNextFrameUnit();
+        }
+        if (healthCheckTask.ResponseAsync.IsFaulted)
+        {
+            yield return handleError("Could not ping control plane", healthCheckTask.ResponseAsync.Exception);
+            yield break;
+        }
 
         yield return handleInfo("Initiating handshake request");
-        var stream = controlClient.SendHandshake();
+        var stream = controlPlaneGrpcClient.SendHandshake();
         
 
         yield return handleInfo("Setting up RTC peer connection configuration");
@@ -115,9 +164,18 @@ public class CubemapGenerator : MonoBehaviour
 
         yield return handleInfo("Creating RTC peer connection");
         videoConnection = new RTCPeerConnection(ref config);
+
+        // handler for video streams
         videoConnection.OnTrack = e =>
         {
-            Debug.Log($"Received track id: {e.Track.Id}, kind: {e.Track.Kind}");
+            Debug.Log($"Received track. ID: {e.Track.Id}, Kind: {e.Track.Kind}");
+
+            if (!idToIdx.ContainsKey(e.Track.Id))
+            {
+                Debug.LogWarning($"Track ID {e.Track.Id} cannot be handled");
+                return;
+            }
+
             int idx = idToIdx[e.Track.Id];
             if (e.Track is VideoStreamTrack video)
             {
@@ -129,6 +187,19 @@ public class CubemapGenerator : MonoBehaviour
                     plane.texture = tex;
                     Debug.Log($"Displaying video for {e.Track.Id}");
                 };
+            }
+        };
+
+        videoConnection.OnDataChannel = chn =>
+        {
+            Debug.Log($"Received data channel. Label: {chn.Label}");
+            if (chn.Label == controlsLabel)
+            {
+                controlsChannel = chn;
+            }
+            else
+            {
+                Debug.LogWarning($"Data channel has unknown label. Label: {chn.Label}");
             }
         };
 
@@ -287,15 +358,11 @@ public class CubemapGenerator : MonoBehaviour
 
         yield return handleInfo("Succeeded in sending answer");
         StartCoroutine(WebRTC.Update());
-    }
-
-    private void closeControlServiceConnection() {
-        controlChannel?.ShutdownAsync().Wait();
-        controlChannel = null;
+        streaming = true;
     }
 
     public void OnDestroy() {
-        closeControlServiceConnection();
+        closeControlPlaneConnection();
         videoConnection?.Close();
         WebRTC.Dispose();
     }
@@ -325,9 +392,17 @@ public class CubemapGenerator : MonoBehaviour
 
     private void reopenUI()
     {
-        closeControlServiceConnection();
+        closeControlPlaneConnection();
+        closePeerConnection();
         submitButton.interactable = true;
         hidePlanes();
+    }
+
+    private void closeControlPlaneConnection()
+    {
+        controlPlaneChannel?.ShutdownAsync().Wait();
+        controlPlaneChannel = null;
+        controlPlaneGrpcClient = null;
     }
 
     private void hidePlanes()
@@ -336,5 +411,15 @@ public class CubemapGenerator : MonoBehaviour
         {
             image?.GameObject().SetActive(false);
         }
+    }
+
+    private void closePeerConnection()
+    {
+        streaming = false;
+        seqNum = 0;
+        controlsChannel?.Close();
+        videoConnection?.Close();
+        controlsChannel = null;
+        videoConnection = null;
     }
 }
