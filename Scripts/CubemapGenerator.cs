@@ -22,8 +22,7 @@ public class CubemapGenerator : MonoBehaviour
     public string controlsLabel;
 
     public RawImage left, right, up, down, front, back;
-    public string leftId, rightId, upId, downId, frontId, backId;
-    public string controlsId;
+    public string leftId = "left", rightId = "right", upId = "up", downId = "down", frontId = "front", backId = "back";
 
     public Canvas canvas;
     public TMP_InputField addrInputField;
@@ -99,34 +98,39 @@ public class CubemapGenerator : MonoBehaviour
         {
             setControlServer(addrInputField.text, portInputField.text);
         });
+
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (streaming && controlPlaneChannel != null && controlsChannel != null && controlsChannel.ReadyState == RTCDataChannelState.Open) {
-            var thumbstickDir = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
-            ThumbstickDirection msg = new ThumbstickDirection()
-            {
-                Dx = thumbstickDir.x,
-                Dy = thumbstickDir.y,
-                SeqNum = seqNum,
-            };
-            byte[] msgAsBytes;
-            using (var ms = new MemoryStream())
-            {
-                msg.WriteDelimitedTo(ms);
-                msgAsBytes = ms.ToArray();
-            }
-            Debug.Log($"msg: {Convert.ToBase64String(msgAsBytes)}");
-            controlsChannel.Send(msgAsBytes);
-            seqNum++;
-        }
 
-        if (OVRInput.Get(OVRInput.Button.PrimaryThumbstick))
+        if (rig != null)
         {
-            Debug.Log("Recentering");
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, rig.centerEyeAnchor.transform.rotation, (float) (followSpeedInDegrees / 180.0 * Math.PI));
+            if (streaming && controlPlaneChannel != null && controlsChannel != null && controlsChannel.ReadyState == RTCDataChannelState.Open)
+            {
+                var thumbstickDir = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
+                ThumbstickDirection msg = new ThumbstickDirection()
+                {
+                    Dx = thumbstickDir.x,
+                    Dy = thumbstickDir.y,
+                    SeqNum = seqNum,
+                };
+                byte[] msgAsBytes;
+                using (var ms = new MemoryStream())
+                {
+                    msg.WriteDelimitedTo(ms);
+                    msgAsBytes = ms.ToArray();
+                }
+                controlsChannel.Send(msgAsBytes);
+                seqNum++;
+            }
+
+
+            if (OVRInput.Get(OVRInput.Button.PrimaryThumbstick))
+            {
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, rig.centerEyeAnchor.transform.rotation, (float)(followSpeedInDegrees / 180.0 * Math.PI));
+            }
         }
     }
 
@@ -357,8 +361,8 @@ public class CubemapGenerator : MonoBehaviour
         }
 
         yield return handleInfo("Succeeded in sending answer");
-        StartCoroutine(WebRTC.Update());
         streaming = true;
+        StartCoroutine(WebRTC.Update());
     }
 
     public void OnDestroy() {
