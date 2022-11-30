@@ -23,7 +23,6 @@ public class WebRtcHandler : MonoBehaviour
     private Channel controlPlaneChannel;
     private Control.ControlClient controlPlaneGrpcClient;
     private RTCPeerConnection videoConnection;
-    private bool streaming;
     private long seqNum;
 
     private Dictionary<String, DelegateOnTrack> trackIdToDelegate;
@@ -93,8 +92,7 @@ public class WebRtcHandler : MonoBehaviour
     void Awake()
     {
         // Initialize WebRTC
-        WebRTC.Initialize();
-        streaming = false;
+        WebRTC.Initialize(limitTextureSize: true, enableNativeLog: true);
         seqNum = 0;
         trackIdToDelegate = new Dictionary<string, DelegateOnTrack>();
         dataChannels = new Dictionary<string, RTCDataChannel>();
@@ -319,7 +317,7 @@ public class WebRtcHandler : MonoBehaviour
         }
 
         yield return handleInfo("Succeeded in sending answer");
-        streaming = true;
+        onConnectionUpdate(true);
         StartCoroutine(WebRTC.Update());
     }
 
@@ -346,7 +344,6 @@ public class WebRtcHandler : MonoBehaviour
             Debug.LogError($"{msg}.");
         }
         onStatusUpdate(msg, true);
-        onConnectionUpdate(false);
         reopenUI();
         yield break;
     }
@@ -355,6 +352,7 @@ public class WebRtcHandler : MonoBehaviour
     {
         closeControlPlaneConnection();
         closePeerConnection();
+        onConnectionUpdate(false);
     }
 
     private void closeControlPlaneConnection()
@@ -366,7 +364,6 @@ public class WebRtcHandler : MonoBehaviour
 
     private void closePeerConnection()
     {
-        streaming = false;
         seqNum = 0;
         foreach (var (_, chn) in dataChannels)
         {
