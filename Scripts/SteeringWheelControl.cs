@@ -29,15 +29,12 @@ public class SteeringWheelControl : MonoBehaviour
 
     // Start is called before the first frame update
     void Start()
-    {
-        Debug.Log("Logging stuff");
-        
+    {        
     }
 
     // Update is called once per frame
     void Update()
     {
-        Debug.Log("UpdatingWheel");
         ReleaseHandsFromWheel();
         ConvertHandRotationToSteeringWheelRotation();
         
@@ -72,17 +69,14 @@ public class SteeringWheelControl : MonoBehaviour
     {
         if (other.CompareTag("PlayerHand"))
         {
-            Debug.Log("Detected collision with PlayerHand");
             // Place right hand
             if (rightHandOnWheel == false && OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch))
             {
-                Debug.Log("Place right hand on wheel");
                 PlaceHandOnWheel(ref rightHand, ref rightHandOriginalParent, ref rightHandOnWheel);            
             }
             // Place left hand
             if (leftHandOnWheel == false && OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch))
             {
-                Debug.Log("Place left hand on wheel");
                 PlaceHandOnWheel(ref leftHand, ref leftHandOriginalParent, ref leftHandOnWheel);
             }
         }
