@@ -9,18 +9,37 @@ using UnityEngine;
 public class VRInputHandler : MonoBehaviour
 {
     public WebRtcHandler webRtcHandler;
+    public SteeringWheelControl wheel;
+
+    // TMP Wheel + objects to control with wheel
+    public GameObject Vehicle; // represents the car
+    private Rigidbody VehicleRigidBody;
 
     public string controlsLabel = "controls";
 
     // Start is called before the first frame update
     void Start()
     {
+        VehicleRigidBody = Vehicle.GetComponent<Rigidbody>();
     }
 
     // Update is called once per frame
     void Update()
     {
         var thumbstickDir = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
-        webRtcHandler.sendControlsMessage(controlsLabel, thumbstickDir.x, thumbstickDir.y);
+        webRtcHandler.sendControlsMessage(controlsLabel, wheel.currentWheelRotation, thumbstickDir.y);
+        TurnVehicle();
+    }
+
+    private void TurnVehicle()
+    {
+        // Turn wheels compared to the steering wheel
+        var turn = wheel.currentWheelRotation;
+        if (turn < -350)
+        {
+            turn = turn + 360;
+        }
+
+        VehicleRigidBody.MoveRotation(Quaternion.RotateTowards(Vehicle.transform.rotation, Quaternion.Euler(0, turn, 0), Time.deltaTime * 9999));
     }
 }

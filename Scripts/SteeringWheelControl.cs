@@ -19,10 +19,6 @@ public class SteeringWheelControl : MonoBehaviour
 
     public Transform[] snapPositions;
 
-    // Wheel + objects to control with wheel
-    public GameObject Vehicle; // represents the car
-    private Rigidbody VehicleRigidBody;
-
     public float currentWheelRotation = 0.0f;
 
     private float turnDampening = 9999;
@@ -34,15 +30,17 @@ public class SteeringWheelControl : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        VehicleRigidBody = Vehicle.GetComponent<Rigidbody>();
+        Debug.Log("Logging stuff");
+        
     }
 
     // Update is called once per frame
     void Update()
     {
+        Debug.Log("UpdatingWheel");
         ReleaseHandsFromWheel();
         ConvertHandRotationToSteeringWheelRotation();
-        TurnVehicle();
+        
         currentWheelRotation = -transform.rotation.eulerAngles.z;
     }
 
@@ -72,17 +70,19 @@ public class SteeringWheelControl : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
-        // TODO add box collider so this works
         if (other.CompareTag("PlayerHand"))
         {
+            Debug.Log("Detected collision with PlayerHand");
             // Place right hand
             if (rightHandOnWheel == false && OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch))
             {
+                Debug.Log("Place right hand on wheel");
                 PlaceHandOnWheel(ref rightHand, ref rightHandOriginalParent, ref rightHandOnWheel);            
             }
             // Place left hand
             if (leftHandOnWheel == false && OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch))
             {
+                Debug.Log("Place left hand on wheel");
                 PlaceHandOnWheel(ref leftHand, ref leftHandOriginalParent, ref leftHandOnWheel);
             }
         }
@@ -111,18 +111,6 @@ public class SteeringWheelControl : MonoBehaviour
         hand.transform.position = bestSnap.transform.position;
         handOnWheel = true;
         
-    }
-
-    private void TurnVehicle()
-    {
-        // Turn wheels compared to the steering wheel
-        var turn = -transform.rotation.eulerAngles.z;
-        if (turn < -350)
-        {
-            turn = turn + 360;
-        }
-
-        VehicleRigidBody.MoveRotation(Quaternion.RotateTowards(Vehicle.transform.rotation, Quaternion.Euler(0, turn, 0), Time.deltaTime * turnDampening));
     }
 
     private void ConvertHandRotationToSteeringWheelRotation()
