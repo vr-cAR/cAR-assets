@@ -20,13 +20,13 @@ public class WebRtcHandler : MonoBehaviour
 
     public string[] iceServers;
 
-    private Channel controlPlaneChannel;
-    private Control.ControlClient controlPlaneGrpcClient;
-    private RTCPeerConnection videoConnection;
-    private long seqNum;
+    private Channel controlPlaneChannel = null;
+    private Control.ControlClient controlPlaneGrpcClient = null;
+    private RTCPeerConnection videoConnection = null;
+    private long seqNum = 0;
 
-    private Dictionary<String, DelegateOnTrack> trackIdToDelegate;
-    private Dictionary<String, RTCDataChannel> dataChannels;
+    private Dictionary<String, DelegateOnTrack> trackIdToDelegate = new Dictionary<string, DelegateOnTrack>();
+    private Dictionary<String, RTCDataChannel> dataChannels = new Dictionary<string, RTCDataChannel>();
 
     [HideInInspector]
     public OnStatusUpdate onStatusUpdate
@@ -44,25 +44,28 @@ public class WebRtcHandler : MonoBehaviour
 
     public void setControlServer(string addr, string port) {
         Debug.Log("Button pressed; initializing webrtc connection");
-        if (controlPlaneChannel != null) {
+        if (this.controlPlaneChannel != null) {
             closeControlPlaneConnection();
         }
-        if (videoConnection != null)
+        if (this.videoConnection != null)
         {
-            videoConnection.Close();
-            videoConnection = null;
+            this.videoConnection.Close();
+            this.videoConnection = null;
         }
-        controlPlaneChannel = new Channel($"{addr}:{port}", ChannelCredentials.Insecure);
-        controlPlaneGrpcClient = new Control.ControlClient(controlPlaneChannel);
+        this.controlPlaneChannel = new Channel($"{addr}:{port}", ChannelCredentials.Insecure);
+        this.controlPlaneGrpcClient = new Control.ControlClient(controlPlaneChannel);
         StartCoroutine(setupRTCPeerConnection());
     }
 
     public bool sendControlsMessage(string chanLabel, float dx, float dy)
     {
-        if (!dataChannels.ContainsKey(chanLabel) || dataChannels[chanLabel].ReadyState != RTCDataChannelState.Open)
+        //Debug.Log("in sendControlsMessage");
+        if (!this.dataChannels.ContainsKey(chanLabel) || this.dataChannels[chanLabel].ReadyState != RTCDataChannelState.Open)
         {
+            //Debug.Log("exiting sendControlsMessage");
             return false;
         }
+        Debug.Log($"Sending direction <{dx}, {dy}> to remote channel {chanLabel}. Open channels: {this.dataChannels}");
         var chan = dataChannels[chanLabel];
 
         ThumbstickDirection msg = new ThumbstickDirection()
@@ -85,7 +88,7 @@ public class WebRtcHandler : MonoBehaviour
 
     public void addTrackDelegate(string trackId, DelegateOnTrack del)
     {
-        trackIdToDelegate[trackId] = del;
+        this.trackIdToDelegate[trackId] = del;
     }
 
     // Like Start() but called regardless of if the script is enabled or not
@@ -93,9 +96,6 @@ public class WebRtcHandler : MonoBehaviour
     {
         // Initialize WebRTC
         WebRTC.Initialize(limitTextureSize: true, enableNativeLog: true);
-        seqNum = 0;
-        trackIdToDelegate = new Dictionary<string, DelegateOnTrack>();
-        dataChannels = new Dictionary<string, RTCDataChannel>();
     }
 
     // Start is called before the first frame update
@@ -111,7 +111,7 @@ public class WebRtcHandler : MonoBehaviour
     private IEnumerator setupRTCPeerConnection()
     {
         yield return handleInfo("Checking if control plane is running");
-        var healthCheckTask = controlPlaneGrpcClient.HealthCheckAsync(new HealthCheckRequest());
+        var healthCheckTask = this.controlPlaneGrpcClient.HealthCheckAsync(new HealthCheckRequest());
         while (!healthCheckTask.ResponseAsync.IsCompleted)
         {
             yield return new WaitForNextFrameUnit();
@@ -123,7 +123,7 @@ public class WebRtcHandler : MonoBehaviour
         }
 
         yield return handleInfo("Initiating handshake request");
-        var stream = controlPlaneGrpcClient.SendHandshake();
+        var stream = this.controlPlaneGrpcClient.SendHandshake();
         
 
         yield return handleInfo("Setting up RTC peer connection configuration");
@@ -140,10 +140,10 @@ public class WebRtcHandler : MonoBehaviour
         config.iceServers = iceServers.ToArray();
 
         yield return handleInfo("Creating RTC peer connection");
-        videoConnection = new RTCPeerConnection(ref config);
+        this.videoConnection = new RTCPeerConnection(ref config);
 
         // handler for video streams
-        videoConnection.OnTrack = e =>
+        this.videoConnection.OnTrack = e =>
         {
             Debug.Log($"Received track. ID: {e.Track.Id}, Kind: {e.Track.Kind}");
 
@@ -157,13 +157,13 @@ public class WebRtcHandler : MonoBehaviour
             del(e);
         };
 
-        videoConnection.OnDataChannel = chn =>
+        this.videoConnection.OnDataChannel = chn =>
         {
             Debug.Log($"Received data channel. Label: {chn.Label}");
             dataChannels[chn.Label] = chn;
         };
 
-        videoConnection.OnIceCandidate = (RTCIceCandidate candidate) =>
+        this.videoConnection.OnIceCandidate = (RTCIceCandidate candidate) =>
         {
             Debug.Log($"ICE candidate: {candidate.Candidate}");
             RTCIceCandidateInit init = new RTCIceCandidateInit();
@@ -186,7 +186,7 @@ public class WebRtcHandler : MonoBehaviour
             });
         };
 
-        videoConnection.OnIceConnectionChange = (RTCIceConnectionState state) =>
+        this.videoConnection.OnIceConnectionChange = (RTCIceConnectionState state) =>
         {
             Debug.Log($"Connection switched to state {state}");
             switch (state)
@@ -323,7 +323,7 @@ public class WebRtcHandler : MonoBehaviour
 
     public void OnDestroy() {
         closeControlPlaneConnection();
-        videoConnection?.Close();
+        this.videoConnection?.Close();
         WebRTC.Dispose();
     }
 
@@ -357,9 +357,9 @@ public class WebRtcHandler : MonoBehaviour
 
     private void closeControlPlaneConnection()
     {
-        controlPlaneChannel?.ShutdownAsync().Wait();
-        controlPlaneChannel = null;
-        controlPlaneGrpcClient = null;
+        this.controlPlaneChannel?.ShutdownAsync().Wait();
+        this.controlPlaneChannel = null;
+        this.controlPlaneGrpcClient = null;
     }
 
     private void closePeerConnection()
@@ -369,8 +369,8 @@ public class WebRtcHandler : MonoBehaviour
         {
             chn.Close();
         }
-        dataChannels.Clear();
-        videoConnection?.Close();
-        videoConnection = null;
+        this.dataChannels.Clear();
+        this.videoConnection?.Close();
+        this.videoConnection = null;
     }
 }

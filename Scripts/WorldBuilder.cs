@@ -51,6 +51,7 @@ public class WorldBuilder : MonoBehaviour
         // instantiate gui
         submitButton.onClick.AddListener(() =>
         {
+            Debug.Log("Clicked submit button!");
             webRtcHandler.setControlServer(addrInputField.text, portInputField.text);
         });
 
