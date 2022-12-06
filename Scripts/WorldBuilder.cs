@@ -19,23 +19,24 @@ public class WorldBuilder : MonoBehaviour
     public WebRtcHandler webRtcHandler;
 
     public List<VideoSink> videoSinks;
+    public List<GameObject> hideOnBuild;
+    public List<GameObject> showOnBuild;
 
     public TMP_InputField addrInputField;
     public TMP_InputField portInputField;
-    public Canvas UI;
     public Button submitButton;
     public TMP_Text statusText;
 
-    private void onConnectionUpdate(bool connected)
+    private void toggleVisibility(bool connected)
     {
-        if (connected)
+        foreach (var toHide in hideOnBuild)
         {
-            Debug.Log("Enabling UI");
-            UI.enabled = false;
-        } else
+            toHide.gameObject.SetActive(!connected);
+        }
+
+        foreach (var toShow in showOnBuild)
         {
-            Debug.Log("Disabling UI");
-            UI.enabled = true;
+            toShow.gameObject.SetActive(connected);
         }
     }
 
@@ -77,7 +78,9 @@ public class WorldBuilder : MonoBehaviour
         }
 
         webRtcHandler.onStatusUpdate = onStatusUpdate;
-        webRtcHandler.onConnectionUpdate = onConnectionUpdate;
+        webRtcHandler.onConnectionUpdate = toggleVisibility;
+
+        toggleVisibility(false);
     }
 
     // Update is called once per frame

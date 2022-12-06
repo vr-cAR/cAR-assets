@@ -113,13 +113,13 @@ public class SteeringWheelControl : MonoBehaviour
         {
             Quaternion newRot = Quaternion.Euler(0, 0, rightHandOriginalParent.transform.rotation.eulerAngles.z);
             steeringWheelDirectionalObject.rotation = newRot;
-            transform.parent = steeringWheelDirectionalObject;
+            transform.rotation = steeringWheelDirectionalObject.rotation;
         }
         else if (!rightHandOnWheel && leftHandOnWheel)
         {
             Quaternion newRot = Quaternion.Euler(0, 0, leftHandOriginalParent.transform.rotation.eulerAngles.z);
             steeringWheelDirectionalObject.rotation = newRot;
-            transform.parent = steeringWheelDirectionalObject;
+            transform.rotation = steeringWheelDirectionalObject.rotation;
         }
         else if (rightHandOnWheel && leftHandOnWheel)
         {
@@ -127,7 +127,7 @@ public class SteeringWheelControl : MonoBehaviour
             Quaternion newRightRot = Quaternion.Euler(0, 0, rightHandOriginalParent.transform.rotation.eulerAngles.z);
             Quaternion finalRot = Quaternion.Slerp(newLeftRot, newRightRot, 1.0f / 2.0f);
             steeringWheelDirectionalObject.rotation = finalRot;
-            transform.parent = steeringWheelDirectionalObject;
+            transform.rotation = steeringWheelDirectionalObject.rotation;
         }
     }
 }

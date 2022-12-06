@@ -1476,7 +1476,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8959247917074809781}
-  - component: {fileID: 4991833302719252415}
   - component: {fileID: 5951705615491529564}
   m_Layer: 0
   m_Name: WorldBuilderUI
@@ -1501,21 +1500,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4991833302719252415
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7553414313641446093}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9aab696c359c44855a84bf2d99a586bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rig: {fileID: 0}
-  followInitialSpeedInDegrees: 40
-  followAccelerationInDegrees: 10
 --- !u!114 &5951705615491529564
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1530,9 +1514,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   webRtcHandler: {fileID: 0}
   videoSinks: []
+  hideOnBuild:
+  - {fileID: 9067017258985846321}
+  showOnBuild: []
   addrInputField: {fileID: 5794377769785582594}
   portInputField: {fileID: 1841075414078333969}
-  UI: {fileID: 6527787285391913198}
   submitButton: {fileID: 7521235610652462270}
   statusText: {fileID: 1855521512353829841}
 --- !u!1 &7976734816034065759

@@ -31,9 +31,19 @@ public class VRInputHandler : MonoBehaviour
         //Debug.LogAssertion(webRtcHandler != null);
         if (thumbstickDir != null)
         {
-            webRtcHandler?.sendControlsMessage(controlsLabel, thumbstickDir.x, thumbstickDir.y);// -wheel.transform.rotation.eulerAngles.z, thumbstickDir.y);
+            var angle = wheel.transform.rotation.eulerAngles.z;
+            float x = 0;
+            if (0 <= angle && angle <= 180)
+            {
+                x = -angle / 180.0f;
+            } else if (180 < angle && angle <= 360)
+            {
+                x = (360 - angle) / 180.0f;
+            }
+            
+            webRtcHandler?.sendControlsMessage(controlsLabel, x, thumbstickDir.y);
         }
-        //TurnVehicle();
+        TurnVehicle();
     }
 
     private void TurnVehicle()
