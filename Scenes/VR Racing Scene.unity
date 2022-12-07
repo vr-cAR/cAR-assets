@@ -1511,11 +1511,11 @@ PrefabInstance:
     - target: {fileID: 2659001063707268378, guid: b04833193bd234ec286b5e9116b6fac9, type: 3}
       propertyPath: hideOnBuild.Array.data[1]
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1602845212}
     - target: {fileID: 2659001063707268378, guid: b04833193bd234ec286b5e9116b6fac9, type: 3}
       propertyPath: showOnBuild.Array.data[0]
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1602845212}
     - target: {fileID: 4320109931628003292, guid: b04833193bd234ec286b5e9116b6fac9, type: 3}
       propertyPath: rig
       value: 
